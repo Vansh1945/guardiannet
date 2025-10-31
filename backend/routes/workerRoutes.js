@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authMiddleware } = require("../middleware/authMiddleware");
-const workerController = require("../controllers/WorkerController");
+const workerController = require("../controllers/workerController");
 
 // Admin-only routes
 router.post("/add-worker", authMiddleware,  workerController.registerWorker);
