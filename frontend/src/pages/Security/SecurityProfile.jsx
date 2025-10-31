@@ -4,7 +4,6 @@ import { User, Camera, Lock, Shield } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from "../../Context/AuthContext";
-import defaultProfile from '../../assets/default-profile.png';
 
 const SecurityProfile = () => {
     const [profile, setProfile] = useState(null);
@@ -107,9 +106,7 @@ const SecurityProfile = () => {
                                         src={`${API}/${profile.profilePicture}`}
                                         alt="Profile"
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            e.target.src = defaultProfile;
-                                        }}
+                                        
                                     />
                                 ) : (
                                     <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
