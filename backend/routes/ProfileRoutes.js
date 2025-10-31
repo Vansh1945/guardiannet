@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const {authMiddleware} = require("../middleware/authMiddleware");
-const { getProfile, updateProfile, updateProfilePicture, updateFamilyMember, removeFamilyMember, recordEntryExit, getResidentLogs, addFamilyMember, getPidSuggestions } = require("../controllers/profileController");
+const { getProfile, updateProfile, updateProfilePicture, updateFamilyMember, removeFamilyMember, recordEntryExit, getResidentLogs, addFamilyMember, getPidSuggestions } = require("../controllers/ProfileController");
 
 // Profile routes
 router.get("/get-profile", authMiddleware, getProfile);
