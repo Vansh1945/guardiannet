@@ -3,7 +3,7 @@ const http = require("http");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const cron = require("node-cron");
-
+require('dotenv').config();
 // Load environment variables
 dotenv.config();
 
@@ -28,6 +28,10 @@ const workerRoutes = require("./routes/workerRoutes");
 const eventRoutes = require("./routes/EventRoutes");
 const profileRoutes = require("./routes/ProfileRoutes");
 
+
+const frontend = process.env.FRONTEND_URL;
+
+
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
@@ -41,7 +45,7 @@ const getServerBaseUrl = (req) => {
 // Middleware setup
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // Frontend URL (update for production)
+    origin: [frontend, 'http://localhost:5175', 'http://localhost:5174'], // Allow localhost and Vercel frontend
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
