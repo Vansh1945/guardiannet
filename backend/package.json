@@ -1,0 +1,38 @@
+{
+    "name": "smart-society-security",
+    "version": "1.0.0",
+    "type": "commonjs",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "build": "echo \"No build step necessary\""
+    },
+    "dependencies": {
+        "@sinch/sdk-core": "^1.2.0",
+        "@sinch/sms": "^1.2.0",
+        "bcrypt": "^5.1.1",
+        "bcryptjs": "^2.4.3",
+        "body-parser": "^1.20.3",
+        "cloudinary": "^1.30.0",
+        "cors": "^2.8.5",
+        "crypto": "^1.0.1",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "firebase": "^11.5.0",
+        "firebase-admin": "^13.2.0",
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^7.8.6",
+        "mongoose-paginate-v2": "^1.9.0",
+        "multer": "^1.4.5-lts.1",
+        "multer-storage-cloudinary": "^4.0.0",
+        "node-cron": "^3.0.3",
+        "nodemailer": "^6.10.0",
+        "path": "^0.12.7",
+        "play-sound": "^1.1.6",
+        "qrcode": "^1.5.4",
+        "socket.io": "^4.8.1",
+        "twilio": "^5.6.1",
+        "zod": "^3.24.2",
+        "zod-validation-error": "^3.4.0"
+    }
+}
