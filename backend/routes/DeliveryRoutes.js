@@ -7,7 +7,7 @@ const {
   deleteDeliveryRequest,
   getAllDeliveryRequests,
   getDeliveryLogs
-} = require("../controllers/DeliveryController"); 
+} = require("../controllers/deliveryController"); 
 
 const { authMiddleware } = require("../middleware/authMiddleware");
 
