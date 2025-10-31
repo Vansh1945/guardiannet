@@ -37,7 +37,7 @@ const ResidentManagement = () => {
         return;
       }
 
-      const response = await axios.get(`${API}/api/admin/users`, {
+      const response = await axios.get(`${API}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 5000
       });
@@ -101,7 +101,7 @@ const ResidentManagement = () => {
 
       if (editingResident) {
         const response = await axios.put(
-          `${API}/api/admin/update/${editingResident._id}`,
+          `${API}/admin/update/${editingResident._id}`,
           {
             name: residentData.name,
             email: residentData.email,
