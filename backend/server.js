@@ -29,7 +29,7 @@ const eventRoutes = require("./routes/EventRoutes");
 const profileRoutes = require("./routes/ProfileRoutes");
 
 
-const frontend = process.env.FRONTEND_URL;
+const frontend = process.env.FRONTEND_URL || 'https://guardiannet.vercel.app';
 
 
 // Initialize Express app
@@ -45,10 +45,11 @@ const getServerBaseUrl = (req) => {
 // Middleware setup
 app.use(
   cors({
-    origin: [frontend, 'http://localhost:5175', 'http://localhost:5174'], // Allow localhost and Vercel frontend
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: [frontend, 'http://localhost:5175', 'http://localhost:5174'], // Explicitly allow Vercel frontend and localhost
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
     credentials: true,
+    optionsSuccessStatus: 200, // For legacy browser support
   })
 );
 app.use(express.json());
