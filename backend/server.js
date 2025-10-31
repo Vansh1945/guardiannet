@@ -19,14 +19,14 @@ const errorHandler = require("./middleware/errorHandler");
 // Route imports
 const staffRoutes = require("./routes/StaffRoutes");
 const authRoutes = require("./routes/AuthRoutes");
-const visitorRoutes = require("./routes/visitorRouters");
+const visitorRoutes = require("./routes/VisitorRouters");
 const adminRoutes = require("./routes/AdminRoutes");
 const vehicleRoutes = require("./routes/VehicleRoutes");
 const deliveryRoutes = require("./routes/DeliveryRoutes");
 const emergencyRoutes = require("./routes/EmergencyRoutes");
 const workerRoutes = require("./routes/workerRoutes");
 const eventRoutes = require("./routes/EventRoutes");
-const profileRoutes = require("./routes/profileRoutes");
+const profileRoutes = require("./routes/ProfileRoutes");
 
 // Initialize Express app
 const app = express();
