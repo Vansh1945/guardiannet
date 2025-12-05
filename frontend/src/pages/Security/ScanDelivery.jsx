@@ -13,10 +13,16 @@ import {
   Loader2,
   Shield,
   History,
-  AlertCircle
+  AlertCircle,
+  Filter,
+  Eye,
+  User,
+  Phone,
+  Home,
+  Calendar,
+  X
 } from 'lucide-react';
 import { useAuth } from "../../Context/AuthContext";
-
 
 const SecurityDeliveryManagement = () => {
   // State declarations
@@ -29,7 +35,11 @@ const SecurityDeliveryManagement = () => {
   const [actionType, setActionType] = useState('entry');
   const [filterStatus, setFilterStatus] = useState('all');
   const [uniqueIdInput, setUniqueIdInput] = useState('');
-    const { API } = useAuth();
+  const [scanLoading, setScanLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const { API } = useAuth();
 
   // Enhanced auth headers with error handling
   const getAuthHeaders = () => {
@@ -46,10 +56,24 @@ const SecurityDeliveryManagement = () => {
       };
     } catch (error) {
       console.error('Authentication error:', error);
-      toast.error('Please login to continue');
+      toast.error('Please login to continue', { position: 'top-right', autoClose: 3000 });
       window.location.href = '/login';
       return {};
     }
+  };
+
+  // Validate scan input
+  const validateScanInput = () => {
+    if (!uniqueIdInput.trim()) {
+      setScanError('Please enter a delivery code');
+      return false;
+    }
+    if (uniqueIdInput.trim().length < 3) {
+      setScanError('Delivery code must be at least 3 characters');
+      return false;
+    }
+    setScanError('');
+    return true;
   };
 
   // Fetch all deliveries with enhanced error handling
@@ -96,9 +120,8 @@ const SecurityDeliveryManagement = () => {
     }
     
     try {
-      setLoading(true);
+      setActionLoading(true);
       
-      // Correct endpoint is /scan (POST) with uniqueId in the body
       const response = await axios.post(
         `${API}/delivery/scan`,
         { 
@@ -117,7 +140,8 @@ const SecurityDeliveryManagement = () => {
             return {
               ...delivery,
               status: response.data.delivery?.status || 'approved',
-              entryTime: response.data.delivery?.entryTime || new Date().toISOString()
+              entryTime: response.data.delivery?.entryTime || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             };
           }
           return delivery;
@@ -125,6 +149,7 @@ const SecurityDeliveryManagement = () => {
         
         // Reset modal state
         setShowActionModal(false);
+        setSelectedDelivery(null);
       } else {
         throw new Error(response.data?.message || `Action ${actionType} failed`);
       }
@@ -150,23 +175,20 @@ const SecurityDeliveryManagement = () => {
       
       toast.error(errorMessage, { position: 'top-right', autoClose: 5000 });
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
   // Handle manual ID scan
   const handleManualScan = async () => {
-    if (!uniqueIdInput) {
-      toast.error('Please enter a delivery code', { position: 'top-right', autoClose: 3000 });
-      return;
-    }
+    if (!validateScanInput()) return;
     
     try {
-      setLoading(true);
+      setScanLoading(true);
       const response = await axios.post(
         `${API}/delivery/scan`,
         { 
-          uniqueId: uniqueIdInput
+          uniqueId: uniqueIdInput.trim()
         },
         getAuthHeaders()
       );
@@ -177,18 +199,25 @@ const SecurityDeliveryManagement = () => {
           autoClose: 3000 
         });
         setUniqueIdInput('');
-        fetchDeliveries(); // Refresh the list
+        setScanError('');
       } else {
         throw new Error(response.data?.message || 'Scan failed');
       }
     } catch (error) {
       console.error('Scan error:', error);
-      toast.error(error.response?.data?.message || 'Invalid delivery code', { 
+      
+      let errorMessage = 'Invalid delivery code';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      setScanError(errorMessage);
+      toast.error(errorMessage, { 
         position: 'top-right', 
         autoClose: 5000 
       });
     } finally {
-      setLoading(false);
+      setScanLoading(false);
     }
   };
 
@@ -228,23 +257,32 @@ const SecurityDeliveryManagement = () => {
   // Filter deliveries
   const filteredDeliveries = deliveries.filter(delivery => {
     // Filter by status
-    if (filterStatus !== 'all' && filterStatus !== delivery.status) {
-      return false;
+    if (filterStatus !== 'all') {
+      if (filterStatus !== delivery.status?.toLowerCase()) return false;
     }
     
     // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
       return (
         (delivery.uniqueId?.toLowerCase().includes(searchLower)) ||
         (delivery.deliveryPersonName?.toLowerCase().includes(searchLower)) ||
         (delivery.deliveryCompany?.toLowerCase().includes(searchLower)) ||
-        (delivery.apartment?.toLowerCase().includes(searchLower))
+        (delivery.apartment?.toLowerCase().includes(searchLower)) ||
+        (delivery.phone?.toLowerCase().includes(searchLower))
       );
     }
     
     return true;
   });
+
+  // Get stats
+  const stats = {
+    total: deliveries.length,
+    pending: deliveries.filter(d => d.status === 'pending').length,
+    approved: deliveries.filter(d => d.status === 'approved').length,
+    completed: deliveries.filter(d => d.status === 'completed').length
+  };
 
   // Initial data fetch
   useEffect(() => {
@@ -252,176 +290,270 @@ const SecurityDeliveryManagement = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <Shield className="text-blue-600" size={28} />
-                Delivery Management
-              </h1>
-              <p className="text-gray-600 mt-1">Manage all delivery entries and exits</p>
+    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
+      <div className="max-w-10xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-primary bg-opacity-10">
+              <Shield className="text-primary" size={24} />
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={fetchDeliveries}
-                disabled={loading}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin h-5 w-5" />
-                ) : (
-                  'Refresh'
-                )}
-              </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-primary">Security Delivery Management</h1>
+              <p className="text-gray-600 text-sm md:text-base mt-1">Track and manage delivery entries, exits, and approvals</p>
             </div>
           </div>
         </div>
 
-        {/* Quick Scan Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Delivery Scan</h2>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Enter Delivery Code</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={uniqueIdInput}
-                  onChange={(e) => setUniqueIdInput(e.target.value)}
-                  placeholder="Scan or enter delivery code..."
-                  className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  onKeyPress={(e) => e.key === 'Enter' && handleManualScan()}
-                />
-                <button
-                  onClick={handleManualScan}
-                  disabled={loading || !uniqueIdInput}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white p-2 rounded-lg disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin h-5 w-5" />
-                  ) : (
-                    <ArrowRightCircle size={20} />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Main Content Card */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Header with Actions */}
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  {/* Quick Scan Input */}
+                  <div className="flex-1 max-w-md">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Quick Delivery Scan
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={uniqueIdInput}
+                        onChange={(e) => {
+                          setUniqueIdInput(e.target.value);
+                          if (scanError) setScanError('');
+                        }}
+                        placeholder="Enter or scan delivery code..."
+                        className={`w-full pl-4 pr-12 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary transition-colors text-sm ${
+                          scanError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-transparent'
+                        }`}
+                        onKeyPress={(e) => e.key === 'Enter' && handleManualScan()}
+                      />
+                      <button
+                        onClick={handleManualScan}
+                        disabled={scanLoading || !uniqueIdInput.trim()}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-secondary text-white rounded-lg disabled:opacity-50"
+                      >
+                        {scanLoading ? (
+                          <Loader2 className="animate-spin h-4 w-4" />
+                        ) : (
+                          <ArrowRightCircle size={16} />
+                        )}
+                      </button>
+                    </div>
+                    {scanError && (
+                      <p className="mt-2 text-xs text-red-600">{scanError}</p>
+                    )}
+                  </div>
 
-        {/* Filters and Search Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-              <div className="flex flex-wrap gap-2">
-                {['all', 'pending', 'approved', 'completed'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3 py-1 rounded-lg text-sm capitalize ${
-                      filterStatus === status
-                        ? status === 'all' 
-                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                          : status === 'approved'
-                            ? 'bg-green-100 text-green-800 border border-green-300'
-                            : status === 'completed'
-                              ? 'bg-gray-100 text-gray-800 border border-gray-300'
-                              : 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search Deliveries</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="text-gray-400 h-5 w-5" />
+                  {/* Filter Toggle */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+                    >
+                      <Filter size={16} />
+                      Filters
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, company, apartment, or code..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm"
-                />
+
+                {/* Filter Options */}
+                {showFilters && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
+                        <div className="flex flex-wrap gap-2">
+                          {['all', 'pending', 'approved', 'completed'].map((status) => (
+                            <button
+                              key={status}
+                              onClick={() => setFilterStatus(status)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                filterStatus === status
+                                  ? status === 'all'
+                                    ? 'bg-secondary text-white'
+                                    : status === 'approved'
+                                      ? 'bg-green-600 text-white'
+                                      : status === 'completed'
+                                        ? 'bg-gray-600 text-white'
+                                        : 'bg-yellow-600 text-white'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {status === 'all' ? 'All Deliveries' : status.charAt(0).toUpperCase() + status.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Search Deliveries</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="text-gray-400 h-5 w-5" />
+                          </div>
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by code, name, company, or apartment..."
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-colors text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total Deliveries */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Deliveries</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <Package className="text-gray-600" size={20} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Pending */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-700">{stats.pending}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-yellow-100">
+                    <Clock className="text-yellow-600" size={20} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Approved */}
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Approved</p>
+                    <p className="text-2xl font-bold text-green-700">{stats.approved}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-green-100">
+                    <CheckCircle className="text-green-600" size={20} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Completed */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-gray-700">{stats.completed}</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <XCircle className="text-gray-600" size={20} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Deliveries Table Section */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          {/* Deliveries Table */}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Delivery', 'Details', 'Status', 'Timing', 'Actions'].map((header) => (
-                    <th key={header} className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      {header}
-                    </th>
-                  ))}
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Delivery Details
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Delivery Person
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Timing
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading && deliveries.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center">
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                    <td colSpan="5" className="px-4 md:px-6 py-8 text-center">
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <Loader2 className="animate-spin h-10 w-10 text-secondary mb-3" />
+                        <p className="text-gray-500">Loading deliveries...</p>
                       </div>
                     </td>
                   </tr>
                 ) : filteredDeliveries.length ? (
                   filteredDeliveries.map((delivery) => (
-                    <tr key={delivery._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={delivery._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Package className="w-5 h-5 text-blue-600" />
+                          <div className="flex-shrink-0 h-10 w-10 bg-secondary/10 rounded-full flex items-center justify-center">
+                            <Package className="w-5 h-5 text-primary" />
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{delivery.deliveryCompany}</div>
-                            <div className="text-sm text-gray-500">Code: {delivery.uniqueId}</div>
+                          <div className="ml-3 md:ml-4">
+                            <div className="text-sm font-medium text-gray-900">{delivery.deliveryCompany || 'Unknown Company'}</div>
+                            <div className="text-xs text-gray-500">Code: {delivery.uniqueId}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{delivery.deliveryPersonName}</div>
-                        <div className="text-sm text-gray-500">Apt: {delivery.apartment}</div>
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          <div className="font-medium">{delivery.deliveryPersonName || 'Unknown'}</div>
+                          <div className="text-gray-500 text-xs mt-1">
+                            Apt: {delivery.apartment || 'N/A'}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1 ${
-                            delivery.status === 'approved'
-                              ? 'bg-green-100 text-green-800'
-                              : delivery.status === 'completed'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {delivery.status?.toUpperCase()}
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
+                              delivery.status === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : delivery.status === 'completed'
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {delivery.status?.toUpperCase() || 'UNKNOWN'}
+                          </span>
                           {getStatusIcon(delivery.status)}
-                        </span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm text-gray-600">
                           {delivery.expectedTime && (
-                            <div className="text-gray-500">Expected: {formatDate(delivery.expectedTime)}</div>
+                            <div className="text-gray-500 text-xs">
+                              Expected: {formatDate(delivery.expectedTime)}
+                            </div>
                           )}
                           {delivery.entryTime && (
-                            <div className="text-gray-500">Entered: {formatDate(delivery.entryTime)}</div>
+                            <div className="text-gray-500 text-xs mt-1">
+                              Entered: {formatDate(delivery.entryTime)}
+                            </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-3">
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           {delivery.status === 'pending' && (
                             <button
                               onClick={() => {
@@ -429,8 +561,10 @@ const SecurityDeliveryManagement = () => {
                                 setActionType('entry');
                                 setShowActionModal(true);
                               }}
-                              className="text-green-600 hover:text-green-900 transition-colors"
+                              className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                              disabled={actionLoading}
                             >
+                              <ArrowRightCircle size={14} />
                               Approve Entry
                             </button>
                           )}
@@ -441,8 +575,10 @@ const SecurityDeliveryManagement = () => {
                                 setActionType('exit');
                                 setShowActionModal(true);
                               }}
-                              className="text-red-600 hover:text-red-900 transition-colors"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                              disabled={actionLoading}
                             >
+                              <ArrowLeftCircle size={14} />
                               Mark Complete
                             </button>
                           )}
@@ -451,8 +587,9 @@ const SecurityDeliveryManagement = () => {
                               setSelectedDelivery(delivery);
                               setShowDetailsModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            className="px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                           >
+                            <Eye size={14} />
                             Details
                           </button>
                         </div>
@@ -461,14 +598,48 @@ const SecurityDeliveryManagement = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                      No deliveries found matching your criteria
+                    <td colSpan="5" className="px-4 md:px-6 py-8 text-center">
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <Package className="h-12 w-12 text-gray-300 mb-3" />
+                        <p className="text-gray-500 font-medium">No deliveries found</p>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {searchTerm.trim() || filterStatus !== 'all' 
+                            ? 'Try adjusting your search or filter criteria' 
+                            : 'No deliveries have been registered yet'}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Footer Stats */}
+          {filteredDeliveries.length > 0 && (
+            <div className="px-4 md:px-6 py-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+                <div>
+                  Showing <span className="font-medium">{filteredDeliveries.length}</span> of{' '}
+                  <span className="font-medium">{deliveries.length}</span> deliveries
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                    <span>Pending: {stats.pending}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span>Approved: {stats.approved}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                    <span>Completed: {stats.completed}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Modal (Entry/Exit) */}
@@ -477,68 +648,71 @@ const SecurityDeliveryManagement = () => {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-xl font-bold text-primary">
                     {actionType === 'entry' ? 'Approve Delivery Entry' : 'Mark Delivery Complete'}
                   </h2>
                   <button
-                    onClick={() => setShowActionModal(false)}
-                    disabled={loading}
+                    onClick={() => {
+                      setShowActionModal(false);
+                      setSelectedDelivery(null);
+                    }}
+                    disabled={actionLoading}
                     className="text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
                   >
-                    ✕
+                    <X size={20} />
                   </button>
                 </div>
 
                 <div className="mb-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div
-                      className={`p-3 rounded-lg ${
-                        actionType === 'entry' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}
-                    >
-                      <Package className="w-5 h-5" />
+                    <div className="p-3 rounded-lg bg-secondary/10">
+                      <Package className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-800">{selectedDelivery.deliveryCompany}</h3>
+                      <h3 className="font-bold text-gray-800">{selectedDelivery.deliveryCompany || 'Unknown Company'}</h3>
                       <p className="text-sm text-gray-600">
                         Code: {selectedDelivery.uniqueId}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-sm text-gray-500">Delivery Person</p>
-                      <p className="font-medium text-sm">
-                        {selectedDelivery.deliveryPersonName}
+                      <p className="text-sm text-gray-500 mb-1">Delivery Person</p>
+                      <p className="font-medium text-sm flex items-center gap-1">
+                        <User size={14} />
+                        {selectedDelivery.deliveryPersonName || 'Unknown'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Apartment</p>
-                      <p className="font-medium text-sm">
-                        {selectedDelivery.apartment}
+                      <p className="text-sm text-gray-500 mb-1">Apartment</p>
+                      <p className="font-medium text-sm flex items-center gap-1">
+                        <Home size={14} />
+                        {selectedDelivery.apartment || 'N/A'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-sm text-gray-500">Phone</p>
-                      <p className="font-medium text-sm">
-                        {selectedDelivery.phone}
+                      <p className="text-sm text-gray-500 mb-1">Phone</p>
+                      <p className="font-medium text-sm flex items-center gap-1">
+                        <Phone size={14} />
+                        {selectedDelivery.phone || 'N/A'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Status</p>
-                      <p className="font-medium text-sm">
-                        {selectedDelivery.status?.toUpperCase()}
+                      <p className="text-sm text-gray-500 mb-1">Current Status</p>
+                      <p className="font-medium text-sm capitalize">
+                        {selectedDelivery.status}
                       </p>
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <p className="text-sm text-gray-500">Expected Time</p>
-                    <p className="font-medium text-sm">
+                    <p className="text-sm text-gray-500 mb-1">Expected Time</p>
+                    <p className="font-medium text-sm flex items-center gap-1">
+                      <Calendar size={14} />
                       {formatDate(selectedDelivery.expectedTime)}
                     </p>
                   </div>
@@ -546,31 +720,34 @@ const SecurityDeliveryManagement = () => {
 
                 <div className="flex justify-end gap-3">
                   <button
-                    onClick={() => setShowActionModal(false)}
-                    disabled={loading}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+                    onClick={() => {
+                      setShowActionModal(false);
+                      setSelectedDelivery(null);
+                    }}
+                    disabled={actionLoading}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDeliveryAction}
-                    disabled={loading}
-                    className={`px-4 py-2 rounded-lg text-white transition-colors flex items-center gap-2 text-sm ${
+                    disabled={actionLoading}
+                    className={`px-4 py-2.5 rounded-lg text-white transition-colors flex items-center gap-2 text-sm ${
                       actionType === 'entry'
                         ? 'bg-green-600 hover:bg-green-700'
                         : 'bg-red-600 hover:bg-red-700'
                     } disabled:opacity-50`}
                   >
-                    {loading ? (
+                    {actionLoading ? (
                       <Loader2 className="animate-spin h-5 w-5" />
                     ) : (
                       <>
                         {actionType === 'entry' ? (
-                          <ArrowRightCircle size={18} />
+                          <ArrowRightCircle size={16} />
                         ) : (
-                          <ArrowLeftCircle size={18} />
+                          <ArrowLeftCircle size={16} />
                         )}
-                        <span>{actionType === 'entry' ? 'Confirm Entry' : 'Confirm Exit'}</span>
+                        <span>{actionType === 'entry' ? 'Confirm Entry' : 'Confirm Complete'}</span>
                       </>
                     )}
                   </button>
@@ -583,117 +760,148 @@ const SecurityDeliveryManagement = () => {
         {/* Details Modal */}
         {showDetailsModal && selectedDelivery && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <Package className="text-blue-600" />
-                    Delivery Details - {selectedDelivery.uniqueId}
-                  </h2>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-secondary/10">
+                      <Package className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-primary">Delivery Details</h2>
+                      <p className="text-gray-600 text-sm">Code: {selectedDelivery.uniqueId}</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setShowDetailsModal(false)}
                     className="text-gray-500 hover:text-gray-700 transition-colors"
                   >
-                    ✕
+                    <X size={20} />
                   </button>
                 </div>
+              </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                      { label: 'Company', value: selectedDelivery.deliveryCompany },
-                      { label: 'Person', value: selectedDelivery.deliveryPersonName },
-                      { label: 'Status', value: selectedDelivery.status, status: true }
-                    ].map((item) => (
-                      <div key={item.label} className="flex flex-col">
-                        <p className="text-sm text-gray-500">{item.label}</p>
-                        <p className="font-medium text-sm">
-                          {item.status ? (
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                item.value === 'approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : item.value === 'completed'
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                              }`}
-                            >
-                              {item.value?.toUpperCase() || 'UNKNOWN'}
-                            </span>
-                          ) : (
-                            item.value
-                          )}
+              <div className="p-6 overflow-y-auto flex-grow">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Company</p>
+                    <p className="font-medium">{selectedDelivery.deliveryCompany || 'Unknown Company'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Status</p>
+                    <p className="font-medium">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        selectedDelivery.status === 'approved'
+                          ? 'bg-green-100 text-green-800'
+                          : selectedDelivery.status === 'completed'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {selectedDelivery.status?.toUpperCase() || 'UNKNOWN'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Apartment</p>
+                    <p className="font-medium">{selectedDelivery.apartment || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Delivery Person</h3>
+                      <p className="text-gray-900 flex items-center gap-2">
+                        <User size={16} />
+                        {selectedDelivery.deliveryPersonName || 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Phone Number</h3>
+                      <p className="text-gray-900 flex items-center gap-2">
+                        <Phone size={16} />
+                        {selectedDelivery.phone || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-1">Expected Time</h3>
+                      <p className="text-gray-900 flex items-center gap-2">
+                        <Calendar size={16} />
+                        {formatDate(selectedDelivery.expectedTime)}
+                      </p>
+                    </div>
+                    {selectedDelivery.entryTime && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Entry Time</h3>
+                        <p className="text-gray-900 flex items-center gap-2">
+                          <ArrowRightCircle size={16} />
+                          {formatDate(selectedDelivery.entryTime)}
                         </p>
                       </div>
-                    ))}
-                    {[
-                      { label: 'Apartment', value: selectedDelivery.apartment },
-                      { label: 'Phone', value: selectedDelivery.phone },
-                      { label: 'Expected Time', value: formatDate(selectedDelivery.expectedTime) }
-                    ].map((item) => (
-                      <div key={item.label} className="flex flex-col">
-                        <p className="text-sm text-gray-500">{item.label}</p>
-                        <p className="font-medium text-sm">{item.value}</p>
-                      </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 <div className="border-t border-gray-200 pt-4">
-                  <h3 className="font-medium text-gray-800 mb-3">Delivery History</h3>
-                  <div className="space-y-4">
-                    <div className="border-l-2 border-blue-200 pl-4 py-2">
-                      <div className="flex justify-between">
-                        <div>
-                          <p className="font-medium flex items-center gap-2 text-sm">
-                            <span className="text-gray-600">
-                              <Clock className="inline mr-1" size={16} />
-                              Request Created
-                            </span>
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {formatDate(selectedDelivery.createdAt)}
-                          </p>
+                  <h3 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                    <History size={18} />
+                    Delivery Timeline
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="border-l-2 border-secondary pl-4 py-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="text-gray-500" size={16} />
+                          <span className="font-medium text-sm">Request Created</span>
                         </div>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(selectedDelivery.createdAt)}
+                        </span>
                       </div>
                     </div>
 
                     {selectedDelivery.entryTime && (
-                      <div className="border-l-2 border-blue-200 pl-4 py-2">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium flex items-center gap-2 text-sm">
-                              <span className="text-green-600">
-                                <ArrowRightCircle className="inline mr-1" size={16} />
-                                Delivery Entered
-                              </span>
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatDate(selectedDelivery.entryTime)}
-                            </p>
+                      <div className="border-l-2 border-secondary pl-4 py-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <ArrowRightCircle className="text-green-500" size={16} />
+                            <span className="font-medium text-sm">Delivery Entered</span>
                           </div>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(selectedDelivery.entryTime)}
+                          </span>
                         </div>
                       </div>
                     )}
 
                     {selectedDelivery.status === 'completed' && (
-                      <div className="border-l-2 border-blue-200 pl-4 py-2">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium flex items-center gap-2 text-sm">
-                              <span className="text-red-600">
-                                <ArrowLeftCircle className="inline mr-1" size={16} />
-                                Delivery Completed
-                              </span>
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatDate(selectedDelivery.updatedAt)}
-                            </p>
+                      <div className="border-l-2 border-secondary pl-4 py-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <ArrowLeftCircle className="text-red-500" size={16} />
+                            <span className="font-medium text-sm">Delivery Completed</span>
                           </div>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(selectedDelivery.updatedAt)}
+                          </span>
                         </div>
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

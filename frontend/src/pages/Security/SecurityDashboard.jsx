@@ -73,10 +73,53 @@ const SecurityDashboard = () => {
 
     try {
       setLoading(true);
-      
-      
-      setDashboardData(mockDashboardData);
-      
+
+      // Fetch alerts from backend
+      const alertsResponse = await axios.get(`${API}/emergency/all-emergency-alerts`, getAuthHeaders());
+
+      if (alertsResponse.data?.success) {
+        const alerts = alertsResponse.data.data || [];
+
+        // Calculate stats from real data
+        const activeAlerts = alerts.filter(alert => alert.status !== 'Resolved');
+        const pendingAlerts = alerts.filter(alert => alert.status === 'Pending');
+        const processingAlerts = alerts.filter(alert => alert.status === 'Processing');
+        const resolvedAlerts = alerts.filter(alert => alert.status === 'Resolved');
+
+        // Get recent activities (last 10 alerts)
+        const recentActivities = alerts.slice(0, 10).map(alert => ({
+          id: alert._id,
+          type: alert.type === 'Unauthorized Entry' ? 'unauthorized' : 'visit',
+          message: alert.type === 'Unauthorized Entry'
+            ? 'Unauthorized entry detected'
+            : `${alert.type} alert reported`,
+          location: alert.location || 'Unknown',
+          timestamp: new Date(alert.createdAt)
+        }));
+
+        // Update dashboard data with real data
+        setDashboardData({
+          stats: [
+            { title: "Active Alerts", value: activeAlerts.length.toString(), change: `${pendingAlerts.length} pending` },
+            { title: "Visitors Today", value: "24", change: "8 expected" }, // Keep mock for now
+            { title: "Vehicles Logged", value: "18", change: "3 deliveries" }, // Keep mock for now
+            { title: "Staff On Duty", value: "7", change: "2 on patrol" } // Keep mock for now
+          ],
+          visitorChart: mockDashboardData.visitorChart, // Keep mock chart data
+          recentActivities: recentActivities,
+          activeAlerts: activeAlerts.slice(0, 5).map(alert => ({ // Show top 5 active alerts
+            id: alert._id,
+            message: alert.type === 'Other' ? alert.customTitle || 'Other Alert' : alert.type,
+            location: alert.location || 'Unknown',
+            priority: alert.status === 'Pending' ? 'high' : 'medium',
+            timestamp: new Date(alert.createdAt)
+          })),
+          currentShift: mockDashboardData.currentShift // Keep mock shift data
+        });
+      } else {
+        throw new Error('Failed to fetch alerts data');
+      }
+
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
       setError('Failed to load dashboard data');

@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getInitialUserState);
   const navigate = useNavigate();
   const API = import.meta.env.VITE_API_URL;
+  const BASE_URL = API.replace('/api', '');
 
   const isLoggedIn = !!token;
 
@@ -68,8 +69,9 @@ export const AuthProvider = ({ children }) => {
     isLoggedIn,
     loginUser,
     logoutUser,
-    API
-  }), [token, role, user, isLoggedIn, API]);
+    API,
+    BASE_URL
+  }), [token, role, user, isLoggedIn, API, BASE_URL]);
 
   return (
     <AuthContext.Provider value={contextValue}>

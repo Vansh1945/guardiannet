@@ -16,7 +16,10 @@ import {
   History,
   PlusCircle,
   User,
-  Home
+  Home,
+  Truck,
+  Package, // Using Package as alternative for Van
+  Filter
 } from 'lucide-react';
 import { useAuth } from "../../Context/AuthContext";
 
@@ -39,8 +42,10 @@ const SecurityVehicleManagement = () => {
     flat_no: ''
   });
   const [formErrors, setFormErrors] = useState({});
-      const { API } = useAuth();
-  
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const { API } = useAuth();
 
   // Get authentication headers
   const getAuthHeaders = () => {
@@ -68,7 +73,7 @@ const SecurityVehicleManagement = () => {
     if (!vehicle_no.trim()) {
       errors.vehicle_no = 'Vehicle number is required';
     } else if (!/^[A-Za-z]{2}\d{1,2}[A-Za-z]{0,2}\d{1,4}$/.test(vehicle_no.trim())) {
-      errors.vehicle_no = 'Invalid vehicle number format';
+      errors.vehicle_no = 'Invalid vehicle number format (e.g., MH12AB1234)';
     }
 
     setFormErrors(errors);
@@ -102,12 +107,14 @@ const SecurityVehicleManagement = () => {
 
   // Handle vehicle entry/exit
   const handleVehicleAction = async () => {
+    if (!selectedVehicle) return;
+
     try {
-      setLoading(true);
+      setActionLoading(true);
       
       const response = await axios.post(
         `${API}/vehicle/verify/${selectedVehicle.vehicle_no}/${actionType}`,
-        { notes },
+        { notes: notes.trim() || undefined },
         getAuthHeaders()
       );
 
@@ -119,6 +126,7 @@ const SecurityVehicleManagement = () => {
       // Reset modal state
       setShowActionModal(false);
       setNotes('');
+      setSelectedVehicle(null);
       
       // Refresh vehicle list
       fetchVehicles();
@@ -129,7 +137,7 @@ const SecurityVehicleManagement = () => {
         { position: 'top-right', autoClose: 5000 }
       );
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -138,14 +146,14 @@ const SecurityVehicleManagement = () => {
     if (!validateForm()) return;
 
     try {
-      setLoading(true);
+      setRegisterLoading(true);
       
       const response = await axios.post(
         `${API}/vehicle/security/register`,
         {
-          vehicle_no: vehicleForm.vehicle_no.toUpperCase(),
+          vehicle_no: vehicleForm.vehicle_no.toUpperCase().trim(),
           vehicle_type: vehicleForm.vehicle_type,
-          flat_no: vehicleForm.flat_no || null
+          flat_no: vehicleForm.flat_no?.trim() || undefined
         },
         getAuthHeaders()
       );
@@ -183,14 +191,14 @@ const SecurityVehicleManagement = () => {
         );
       }
     } finally {
-      setLoading(false);
+      setRegisterLoading(false);
     }
   };
 
   // Get vehicle logs
   const fetchVehicleHistory = async (vehicleId) => {
     try {
-      setLoading(true);
+      setHistoryLoading(true);
       const response = await axios.get(
         `${API}/vehicle/history/${vehicleId}`,
         getAuthHeaders()
@@ -209,7 +217,7 @@ const SecurityVehicleManagement = () => {
         { position: 'top-right', autoClose: 5000 }
       );
     } finally {
-      setLoading(false);
+      setHistoryLoading(false);
     }
   };
 
@@ -242,12 +250,17 @@ const SecurityVehicleManagement = () => {
   const getVehicleIcon = (type) => {
     switch (type?.toLowerCase()) {
       case 'car':
-        return <Car className="w-5 h-5" />;
+        return <Car className="w-5 h-5 text-primary" />;
       case 'bike':
+        return <Bike className="w-5 h-5 text-primary" />;
       case 'scooter':
-        return <Bike className="w-5 h-5" />;
+        return <Bike className="w-5 h-5 text-primary" />;
+      case 'truck':
+        return <Truck className="w-5 h-5 text-primary" />;
+      case 'van':
+        return <Package className="w-5 h-5 text-primary" />; // Changed from Van to Package
       default:
-        return <Car className="w-5 h-5" />;
+        return <Car className="w-5 h-5 text-primary" />;
     }
   };
 
@@ -260,8 +273,8 @@ const SecurityVehicleManagement = () => {
     }
     
     // Filter by search term
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
       return (
         vehicle.vehicle_no.toLowerCase().includes(searchLower) ||
         (vehicle.owner?.name && vehicle.owner.name.toLowerCase().includes(searchLower)) ||
@@ -279,180 +292,240 @@ const SecurityVehicleManagement = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
+      <div className="max-w-10xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <Shield className="text-blue-600" size={28} />
-                Security Vehicle Management
-              </h1>
-              <p className="text-gray-600 mt-1">Manage all vehicle entries and exits</p>
+        <div className="mb-6 lg:mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-primary bg-opacity-10">
+              <Shield className="text-primary" size={24} />
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={fetchVehicles}
-                disabled={loading}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin h-5 w-5" />
-                ) : (
-                  <span>Refresh</span>
-                )}
-              </button>
-              <button
-                onClick={() => setShowRegisterModal(true)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <PlusCircle size={18} />
-                <span className="hidden sm:inline">Register Vehicle</span>
-              </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-primary">Security Vehicle Management</h1>
+              <p className="text-gray-600 text-sm md:text-base mt-1">Track and manage vehicle entries, exits, and registrations</p>
             </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
-              <div className="flex flex-wrap gap-2">
-                {['all', 'inside', 'outside'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3 py-1 rounded-lg text-sm capitalize ${
-                      filterStatus === status
-                        ? status === 'all' 
-                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                          : status === 'inside'
-                            ? 'bg-green-100 text-green-800 border border-green-300'
-                            : 'bg-red-100 text-red-800 border border-red-300'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status === 'all' ? 'All' : status}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search Vehicles</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="text-gray-400 h-5 w-5" />
+        {/* Main Content Card */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Header with Actions */}
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  {/* Search Input */}
+                  <div className="flex-1 max-w-md">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="text-gray-400 h-5 w-5" />
+                      </div>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search vehicles by number, name, or flat..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-colors text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex items-center gap-2">
+                    <Filter className="text-gray-500" size={18} />
+                    <div className="flex flex-wrap gap-1">
+                      {['all', 'inside', 'outside'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => setFilterStatus(status)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            filterStatus === status
+                              ? status === 'all'
+                                ? 'bg-secondary text-white'
+                                : status === 'inside'
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-red-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {status === 'all' ? 'All Vehicles' : status.charAt(0).toUpperCase() + status.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by plate, name, or flat..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm"
-                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={fetchVehicles}
+                  disabled={loading}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 text-sm"
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin h-4 w-4" />
+                  ) : (
+                    <>
+                      <span>Refresh</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowRegisterModal(true)}
+                  className="px-4 py-2.5 bg-secondary text-white rounded-lg hover:bg-secondary-dark transition-colors flex items-center gap-2 text-sm"
+                >
+                  <PlusCircle size={16} />
+                  <span>Register Vehicle</span>
+                </button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Vehicles Table */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          {/* Vehicles Table */}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Vehicle', 'Owner', 'Status', 'Last Action', 'Actions'].map((header) => (
-                    <th key={header} className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      {header}
-                    </th>
-                  ))}
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vehicle Details
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Owner Information
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Action
+                  </th>
+                  <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading && vehicles.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center">
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+                    <td colSpan="5" className="px-4 md:px-6 py-8 text-center">
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <Loader2 className="animate-spin h-10 w-10 text-secondary mb-3" />
+                        <p className="text-gray-500">Loading vehicles...</p>
                       </div>
                     </td>
                   </tr>
                 ) : filteredVehicles.length ? (
                   filteredVehicles.map((vehicle) => (
-                    <tr key={vehicle._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={vehicle._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <div className="flex-shrink-0 h-10 w-10 bg-secondary/10 rounded-full flex items-center justify-center">
                             {getVehicleIcon(vehicle.vehicle_type)}
                           </div>
-                          <div className="ml-4">
+                          <div className="ml-3 md:ml-4">
                             <div className="text-sm font-medium text-gray-900">{vehicle.vehicle_no}</div>
-                            <div className="text-sm text-gray-500 capitalize">{vehicle.vehicle_type}</div>
+                            <div className="text-xs text-gray-500 capitalize">
+                              {vehicle.vehicle_type === 'car' ? 'Car' : 
+                               vehicle.vehicle_type === 'bike' ? 'Bike' : 
+                               vehicle.vehicle_type === 'scooter' ? 'Scooter' : 
+                               vehicle.vehicle_type === 'truck' ? 'Truck' : 
+                               vehicle.vehicle_type === 'van' ? 'Van' : vehicle.vehicle_type}
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm text-gray-900">
                           {vehicle.is_guest ? (
                             <>
-                              <div className="font-medium">{vehicle.visitor_name || 'Guest'}</div>
-                              <div className="text-gray-500">{vehicle.visitor_phone}</div>
+                              <div className="font-medium flex items-center gap-1">
+                                <User size={14} />
+                                {vehicle.visitor_name || 'Guest'}
+                              </div>
+                              <div className="text-gray-500 text-xs mt-1">
+                                {vehicle.visitor_phone || 'No phone provided'}
+                              </div>
                             </>
                           ) : (
                             <>
-                              <div className="font-medium">{vehicle.owner?.name || 'Resident'}</div>
-                              {vehicle.flat_no && <div className="text-gray-500">Flat {vehicle.flat_no}</div>}
+                              <div className="font-medium">
+                                {vehicle.owner?.name || 'Resident'}
+                              </div>
+                              {vehicle.flat_no && (
+                                <div className="text-gray-500 text-xs mt-1 flex items-center gap-1">
+                                  <Home size={12} />
+                                  Flat {vehicle.flat_no}
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1 ${
-                            vehicle.current_status === 'inside'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {vehicle.current_status?.toUpperCase() || 'UNKNOWN'}
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
+                              vehicle.current_status === 'inside'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {vehicle.current_status?.toUpperCase() || 'UNKNOWN'}
+                          </span>
                           {getStatusIcon(vehicle.current_status)}
-                        </span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="text-sm text-gray-600">
-                          {vehicle.last_action && (
+                          {vehicle.last_action ? (
                             <>
-                              <div className="capitalize">{vehicle.last_action?.toLowerCase()}</div>
-                              <div className="text-gray-500">{formatDate(vehicle.last_timestamp)}</div>
+                              <div className="capitalize font-medium">
+                                {vehicle.last_action?.toLowerCase()}
+                              </div>
+                              <div className="text-gray-500 text-xs mt-1">
+                                {formatDate(vehicle.last_timestamp)}
+                              </div>
                             </>
+                          ) : (
+                            <span className="text-gray-400">No recent activity</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-3">
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <button
                             onClick={() => {
                               setSelectedVehicle(vehicle);
                               setActionType(vehicle.current_status === 'inside' ? 'exit' : 'entry');
                               setShowActionModal(true);
                             }}
-                            className={`${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 ${
                               vehicle.current_status === 'inside'
-                                ? 'text-red-600 hover:text-red-900'
-                                : 'text-green-600 hover:text-green-900'
+                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                : 'bg-green-50 text-green-700 hover:bg-green-100'
                             } transition-colors`}
                           >
-                            {vehicle.current_status === 'inside' ? 'Exit' : 'Entry'}
+                            {vehicle.current_status === 'inside' ? (
+                              <>
+                                <ArrowLeftCircle size={14} />
+                                Mark Exit
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRightCircle size={14} />
+                                Mark Entry
+                              </>
+                            )}
                           </button>
                           <button
                             onClick={() => {
                               setSelectedVehicle(vehicle);
                               fetchVehicleHistory(vehicle._id);
                             }}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            className="px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                            disabled={historyLoading}
                           >
+                            <History size={14} />
                             History
                           </button>
                         </div>
@@ -461,14 +534,53 @@ const SecurityVehicleManagement = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                      No vehicles found matching your criteria
+                    <td colSpan="5" className="px-4 md:px-6 py-8 text-center">
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <Car className="h-12 w-12 text-gray-300 mb-3" />
+                        <p className="text-gray-500 font-medium">No vehicles found</p>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {searchTerm.trim() || filterStatus !== 'all' 
+                            ? 'Try adjusting your search or filter criteria' 
+                            : 'No vehicles are currently registered'}
+                        </p>
+                        {!searchTerm.trim() && filterStatus === 'all' && (
+                          <button
+                            onClick={() => setShowRegisterModal(true)}
+                            className="mt-3 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary-dark transition-colors flex items-center gap-2 text-sm"
+                          >
+                            <PlusCircle size={14} />
+                            Register First Vehicle
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Footer Stats */}
+          {filteredVehicles.length > 0 && (
+            <div className="px-4 md:px-6 py-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
+                <div>
+                  Showing <span className="font-medium">{filteredVehicles.length}</span> of{' '}
+                  <span className="font-medium">{vehicles.length}</span> vehicles
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span>Inside: {vehicles.filter(v => v.current_status === 'inside').length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span>Outside: {vehicles.filter(v => v.current_status === 'outside').length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Modal (Entry/Exit) */}
@@ -477,15 +589,16 @@ const SecurityVehicleManagement = () => {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-xl font-bold text-primary">
                     {actionType === 'entry' ? 'Record Vehicle Entry' : 'Record Vehicle Exit'}
                   </h2>
                   <button
                     onClick={() => {
                       setShowActionModal(false);
                       setNotes('');
+                      setSelectedVehicle(null);
                     }}
-                    disabled={loading}
+                    disabled={actionLoading}
                     className="text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
                   >
                     ✕
@@ -494,25 +607,25 @@ const SecurityVehicleManagement = () => {
 
                 <div className="mb-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div
-                      className={`p-3 rounded-lg ${
-                        actionType === 'entry' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}
-                    >
+                    <div className="p-3 rounded-lg bg-secondary/10">
                       {getVehicleIcon(selectedVehicle.vehicle_type)}
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-800">{selectedVehicle.vehicle_no}</h3>
                       <p className="text-sm text-gray-600 capitalize">
-                        {selectedVehicle.vehicle_type} •{' '}
+                        {selectedVehicle.vehicle_type === 'car' ? 'Car' : 
+                         selectedVehicle.vehicle_type === 'bike' ? 'Bike' : 
+                         selectedVehicle.vehicle_type === 'scooter' ? 'Scooter' : 
+                         selectedVehicle.vehicle_type === 'truck' ? 'Truck' : 
+                         selectedVehicle.vehicle_type === 'van' ? 'Van' : selectedVehicle.vehicle_type} •{' '}
                         {selectedVehicle.is_guest ? 'Guest Vehicle' : 'Resident Vehicle'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-sm text-gray-500">Owner</p>
+                      <p className="text-sm text-gray-500 mb-1">Owner</p>
                       <p className="font-medium text-sm">
                         {selectedVehicle.is_guest
                           ? selectedVehicle.visitor_name || 'Guest'
@@ -520,18 +633,18 @@ const SecurityVehicleManagement = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Flat</p>
-                      <p className="font-medium text-sm">{selectedVehicle.flat_no || 'N/A'}</p>
+                      <p className="text-sm text-gray-500 mb-1">Flat Number</p>
+                      <p className="font-medium text-sm">{selectedVehicle.flat_no || 'Not specified'}</p>
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Any additional notes..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm focus:border-transparent transition-colors"
+                      placeholder="Add any additional notes for this action..."
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-colors text-sm resize-none"
                       rows={3}
                     />
                   </div>
@@ -542,29 +655,30 @@ const SecurityVehicleManagement = () => {
                     onClick={() => {
                       setShowActionModal(false);
                       setNotes('');
+                      setSelectedVehicle(null);
                     }}
-                    disabled={loading}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+                    disabled={actionLoading}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleVehicleAction}
-                    disabled={loading}
-                    className={`px-4 py-2 rounded-lg text-white transition-colors flex items-center gap-2 text-sm ${
+                    disabled={actionLoading}
+                    className={`px-4 py-2.5 rounded-lg text-white transition-colors flex items-center gap-2 text-sm ${
                       actionType === 'entry'
                         ? 'bg-green-600 hover:bg-green-700'
                         : 'bg-red-600 hover:bg-red-700'
                     } disabled:opacity-50`}
                   >
-                    {loading ? (
+                    {actionLoading ? (
                       <Loader2 className="animate-spin h-5 w-5" />
                     ) : (
                       <>
                         {actionType === 'entry' ? (
-                          <ArrowRightCircle size={18} />
+                          <ArrowRightCircle size={16} />
                         ) : (
-                          <ArrowLeftCircle size={18} />
+                          <ArrowLeftCircle size={16} />
                         )}
                         <span>{actionType === 'entry' ? 'Confirm Entry' : 'Confirm Exit'}</span>
                       </>
@@ -582,7 +696,7 @@ const SecurityVehicleManagement = () => {
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
               <div className="p-6 flex-grow overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800">Register Vehicle</h2>
+                  <h2 className="text-xl font-bold text-primary">Register New Vehicle</h2>
                   <button
                     onClick={() => {
                       setShowRegisterModal(false);
@@ -593,16 +707,16 @@ const SecurityVehicleManagement = () => {
                       });
                       setFormErrors({});
                     }}
-                    disabled={loading}
+                    disabled={registerLoading}
                     className="text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Vehicle Number <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -618,36 +732,53 @@ const SecurityVehicleManagement = () => {
                         }
                       }}
                       placeholder="e.g. MH12AB1234"
-                      className={`w-full px-4 py-2 border ${
-                        formErrors.vehicle_no ? 'border-red-500' : 'border-gray-300'
-                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm`}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary transition-colors text-sm ${
+                        formErrors.vehicle_no ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-transparent'
+                      }`}
                       required
                     />
                     {formErrors.vehicle_no && (
-                      <p className="mt-1 text-sm text-red-600">{formErrors.vehicle_no}</p>
+                      <p className="mt-2 text-xs text-red-600">{formErrors.vehicle_no}</p>
                     )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      Format: State code + District code + Series + Number (e.g., MH12AB1234)
+                    </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Vehicle Type
                     </label>
-                    <select
-                      value={vehicleForm.vehicle_type}
-                      onChange={(e) => setVehicleForm(prev => ({
-                        ...prev,
-                        vehicle_type: e.target.value
-                      }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    >
-                      {['car', 'bike', 'scooter', 'truck', 'van'].map((type) => (
-                        <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {[
+                        { value: 'car', label: 'Car', icon: <Car size={18} /> },
+                        { value: 'bike', label: 'Bike', icon: <Bike size={18} /> },
+                        { value: 'scooter', label: 'Scooter', icon: <Bike size={18} /> },
+                        { value: 'truck', label: 'Truck', icon: <Truck size={18} /> },
+                        { value: 'van', label: 'Van', icon: <Package size={18} /> } // Changed from Van to Package
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setVehicleForm(prev => ({
+                            ...prev,
+                            vehicle_type: type.value
+                          }))}
+                          className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-1 transition-colors ${
+                            vehicleForm.vehicle_type === type.value
+                              ? 'bg-secondary text-white border-secondary'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {type.icon}
+                          <span className="text-xs">{type.label}</span>
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Flat Number (Optional)
                     </label>
                     <input
@@ -663,13 +794,16 @@ const SecurityVehicleManagement = () => {
                         }
                       }}
                       placeholder="e.g. A101, B202"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-colors text-sm"
                     />
+                    {formErrors.flat_no && (
+                      <p className="mt-2 text-xs text-red-600">{formErrors.flat_no}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 border-t border-gray-200 bg-white sticky bottom-0">
+              <div className="p-6 border-t border-gray-200">
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => {
@@ -681,21 +815,21 @@ const SecurityVehicleManagement = () => {
                       });
                       setFormErrors({});
                     }}
-                    disabled={loading}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+                    disabled={registerLoading}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={registerVehicle}
-                    disabled={loading}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 text-sm"
+                    disabled={registerLoading}
+                    className="px-4 py-2.5 bg-secondary hover:bg-secondary-dark text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 text-sm"
                   >
-                    {loading ? (
+                    {registerLoading ? (
                       <Loader2 className="animate-spin h-5 w-5" />
                     ) : (
                       <>
-                        <PlusCircle size={18} />
+                        <PlusCircle size={16} />
                         <span>Register Vehicle</span>
                       </>
                     )}
@@ -709,13 +843,18 @@ const SecurityVehicleManagement = () => {
         {/* History Modal */}
         {showHistoryModal && selectedVehicle && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <History className="text-blue-600" />
-                    Vehicle History - {selectedVehicle.vehicle_no}
-                  </h2>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-secondary/10">
+                      {getVehicleIcon(selectedVehicle.vehicle_type)}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-primary">Vehicle History</h2>
+                      <p className="text-gray-600 text-sm">{selectedVehicle.vehicle_no}</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setShowHistoryModal(false)}
                     className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -723,85 +862,107 @@ const SecurityVehicleManagement = () => {
                     ✕
                   </button>
                 </div>
+              </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                      { label: 'Vehicle Number', value: selectedVehicle.vehicle_no },
-                      { label: 'Type', value: selectedVehicle.vehicle_type, capitalize: true },
-                      { label: 'Current Status', value: selectedVehicle.current_status, status: true }
-                    ].map((item) => (
-                      <div key={item.label} className="flex flex-col">
-                        <p className="text-sm text-gray-500">{item.label}</p>
-                        <p className="font-medium text-sm">
-                          {item.status ? (
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                item.value === 'inside'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {item.value?.toUpperCase() || 'UNKNOWN'}
-                            </span>
-                          ) : item.capitalize ? (
-                            item.value?.toLowerCase()
-                          ) : (
-                            item.value
-                          )}
-                        </p>
-                      </div>
-                    ))}
+              <div className="p-6 overflow-y-auto flex-grow">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Current Status</p>
+                    <p className="font-medium">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        selectedVehicle.current_status === 'inside'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedVehicle.current_status?.toUpperCase() || 'UNKNOWN'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Vehicle Type</p>
+                    <p className="font-medium capitalize">{selectedVehicle.vehicle_type}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Owner Type</p>
+                    <p className="font-medium">
+                      {selectedVehicle.is_guest ? 'Guest Vehicle' : 'Resident Vehicle'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="border-t border-gray-200 pt-4">
-                  <h3 className="font-medium text-gray-800 mb-3">Movement History</h3>
-                  {vehicleHistory.length > 0 ? (
-                    <div className="space-y-4">
+                  <h3 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                    <History size={18} />
+                    Movement History
+                  </h3>
+                  {historyLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="animate-spin h-8 w-8 text-secondary" />
+                    </div>
+                  ) : vehicleHistory.length > 0 ? (
+                    <div className="space-y-3">
                       {vehicleHistory.map((log, index) => (
-                        <div key={index} className="border-l-2 border-blue-200 pl-4 py-2">
-                          <div className="flex justify-between">
-                            <div>
-                              <p className="font-medium flex items-center gap-2 text-sm">
-                                {log.action === 'Entered' ? (
-                                  <span className="text-green-600">
-                                    <ArrowRightCircle className="inline mr-1" size={16} />
-                                    Entered Premises
-                                  </span>
-                                ) : log.action === 'Exited' ? (
-                                  <span className="text-red-600">
-                                    <ArrowLeftCircle className="inline mr-1" size={16} />
-                                    Exited Premises
-                                  </span>
-                                ) : (
-                                  <span className="capitalize">{log.action?.toLowerCase()}</span>
-                                )}
-                              </p>
-                              <p className="text-sm text-gray-500">{formatDate(log.timestamp)}</p>
+                        <div key={index} className="border-l-2 border-secondary pl-4 py-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {log.action === 'Entered' ? (
+                                <ArrowRightCircle className="text-green-500" size={16} />
+                              ) : log.action === 'Exited' ? (
+                                <ArrowLeftCircle className="text-red-500" size={16} />
+                              ) : (
+                                <AlertCircle className="text-yellow-500" size={16} />
+                              )}
+                              <span className="font-medium text-sm">
+                                {log.action || 'Unknown Action'}
+                              </span>
                             </div>
-                            {log.verified_by && (
-                              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                Verified by {log.verified_by.name}
-                              </div>
-                            )}
+                            <span className="text-xs text-gray-500">
+                              {formatDate(log.timestamp)}
+                            </span>
                           </div>
-                          {log.notes && (
-                            <p className="text-sm mt-1 text-gray-600">
-                              <span className="font-medium">Notes:</span> {log.notes}
-                            </p>
+                          {(log.notes || log.reason) && (
+                            <div className="mt-2 bg-gray-50 p-2 rounded text-xs">
+                              {log.notes && (
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Notes:</span> {log.notes}
+                                </p>
+                              )}
+                              {log.reason && (
+                                <p className="text-gray-600 mt-1">
+                                  <span className="font-medium">Reason:</span> {log.reason}
+                                </p>
+                              )}
+                            </div>
                           )}
-                          {log.reason && (
-                            <p className="text-sm mt-1 text-gray-600">
-                              <span className="font-medium">Reason:</span> {log.reason}
-                            </p>
+                          {log.verified_by && (
+                            <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+                              <span>Verified by:</span>
+                              <span className="font-medium">{log.verified_by.name}</span>
+                            </div>
                           )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-4 text-sm">No movement history available</p>
+                    <div className="text-center py-8">
+                      <History className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">No movement history available</p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        This vehicle has no recorded entries or exits
+                      </p>
+                    </div>
                   )}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowHistoryModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

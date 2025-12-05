@@ -12,7 +12,7 @@ const AdminProfile = () => {
   const [previewImage, setPreviewImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { API } = useAuth();
+  const { API, BASE_URL } = useAuth();
 
   const {
     register,
@@ -194,7 +194,7 @@ const AdminProfile = () => {
                       />
                     ) : profile?.profilePicture ? (
                       <img
-                        src={`${API}/${profile.profilePicture}`}
+                        src={`${BASE_URL}/${profile.profilePicture}`}
                         alt="Profile"
                         className="w-full h-full object-cover"
                         onError={(e) => {
