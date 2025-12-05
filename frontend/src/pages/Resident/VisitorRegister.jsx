@@ -1091,7 +1091,7 @@ const ResidentVisitorManagement = () => {
                                       {visitor.is_pre_registered ? "Pre-registered" : "Walk-in"}
                                     </span>
                                     {visitor.expected_arrival && (
-                                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 flex items-center gap-1">
+                                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 items-center gap-1">
                                         <Clock size={12} /> {formatTime(visitor.expected_arrival)}
                                       </span>
                                     )}

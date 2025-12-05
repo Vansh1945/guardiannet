@@ -148,8 +148,6 @@ const ResidentLogsView = () => {
     return type === 'entry' ? 'border-l-green-500 bg-green-50' : 'border-l-red-500 bg-red-50';
   };
 
-
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
@@ -185,8 +183,6 @@ const ResidentLogsView = () => {
               {showFilters ? 'Hide Filters' : 'Show Filters'}
             </button>
             
-           
-
             <div className="text-sm text-gray-600">
               Total Logs: {logs.length}
             </div>
@@ -273,7 +269,12 @@ const ResidentLogsView = () => {
 
         {/* Logs List */}
         <div className="space-y-4">
-          {logs.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-spin" />
+              <h3 className="text-lg font-medium text-gray-700 mb-2">Loading logs...</h3>
+            </div>
+          ) : logs.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm p-8 text-center">
               <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-700 mb-2">No logs found</h3>
@@ -282,9 +283,9 @@ const ResidentLogsView = () => {
               </p>
             </div>
           ) : (
-            logs.map((log) => (
+            logs.map((log, index) => (
               <div
-                key={log._id}
+                key={log._id || log.id || `${log.permanentId}-${log.timestamp}-${index}`}
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${getLogColor(log.type)} p-6 hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -304,7 +305,6 @@ const ResidentLogsView = () => {
                     <p className="text-sm font-medium text-gray-800">
                       {formatDate(log.timestamp)}
                     </p>
-                   
                   </div>
                 </div>
 
@@ -334,8 +334,6 @@ const ResidentLogsView = () => {
             ))
           )}
         </div>
-
-
       </div>
     </div>
   );

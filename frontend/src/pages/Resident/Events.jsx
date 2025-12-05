@@ -67,7 +67,7 @@ const fetchEvents = async () => {
     }
 
     const response = await axios.get(
-      `${API}/view-event`,
+      `${API}/event/view-event`,
       {
         ...getAuthHeaders(),
         params
@@ -93,7 +93,7 @@ const fetchEvents = async () => {
         throw new Error('Invalid event ID');
       }
       const response = await axios.get(
-        `${API}/view-event/${eventId}`,
+        `${API}/event/view-event/${eventId}`,
         getAuthHeaders()
       );
       return response.data.data;
