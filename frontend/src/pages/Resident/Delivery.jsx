@@ -5,7 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 import {
   Truck, Package, Clock, X, Calendar, Search, Home, User,
-  ArrowRightCircle, Plus, Edit, Trash2, ChevronLeft, ChevronRight, List
+  ArrowRightCircle, Plus, Edit, Trash2, ChevronLeft, ChevronRight, List,
+  MoreVertical, Filter, Phone, Mail, CheckCircle, AlertCircle, ChevronDown
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -37,7 +38,7 @@ const PhoneInput = ({ value, onChange, error }) => {
           type="text"
           value={digits}
           onChange={handleChange}
-          className={`w-full pl-12 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+          className={`w-full pl-12 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base ${
             error ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter 10-digit number"
@@ -52,22 +53,22 @@ const PhoneInput = ({ value, onChange, error }) => {
 
 const DeliveryLogs = ({ logs }) => {
   return (
-    <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-        <List size={18} /> Delivery Activity Log
+    <div className="mt-4 md:mt-6 bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200">
+      <h3 className="text-base md:text-lg font-semibold mb-3 flex items-center gap-2">
+        <List size={16} className="md:size-5" /> Delivery Activity Log
       </h3>
       <div className="space-y-3">
         {logs.length === 0 ? (
-          <p className="text-gray-500">No activity recorded yet</p>
+          <p className="text-gray-500 text-sm md:text-base">No activity recorded yet</p>
         ) : (
-          <div className="border-l-2 border-blue-200 pl-4 space-y-4">
+          <div className="border-l-2 border-blue-200 pl-3 md:pl-4 space-y-4">
             {logs.map((log, index) => (
               <div key={index} className="relative">
-                <div className="absolute -left-4 top-2 h-3 w-3 rounded-full "></div>
+                <div className="absolute -left-2.5 top-2 h-2 w-2 rounded-full bg-blue-500"></div>
                 <div className="ml-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium capitalize">{log.action}</span>
-                    <span className="text-sm text-gray-500">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
+                    <span className="font-medium capitalize text-sm md:text-base">{log.action}</span>
+                    <span className="text-xs md:text-sm text-gray-500 mt-1 sm:mt-0">
                       {new Date(log.time).toLocaleString('en-IN', {
                         day: '2-digit',
                         month: 'short',
@@ -77,7 +78,7 @@ const DeliveryLogs = ({ logs }) => {
                       })}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{log.description}</p>
+                  <p className="text-xs md:text-sm text-gray-600 mt-1">{log.description}</p>
                 </div>
               </div>
             ))}
@@ -102,6 +103,9 @@ const DeliveryManagement = () => {
   const [isSending, setIsSending] = useState(false);
   const [logs, setLogs] = useState([]);
   const [resident, setResident] = useState(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [mobileActionMenu, setMobileActionMenu] = useState(null);
+  const [showMobileTabs, setShowMobileTabs] = useState(false);
   const navigate = useNavigate();
   const { API } = useAuth();
   const [deliveryForm, setDeliveryForm] = useState({
@@ -111,7 +115,6 @@ const DeliveryManagement = () => {
     deliveryCompany: '',
     expectedTime: new Date()
   });
-
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -470,28 +473,89 @@ const DeliveryManagement = () => {
     setCurrentPage(1);
   }, [searchTerm, selectedDate, activeTab]);
 
+  // Mobile Actions Dropdown
+  const MobileActionsDropdown = ({ delivery }) => (
+    <div className="relative">
+      <button
+        onClick={() => setMobileActionMenu(mobileActionMenu === delivery._id ? null : delivery._id)}
+        className="p-2 rounded-lg hover:bg-gray-100"
+      >
+        <MoreVertical size={20} />
+      </button>
+      
+      {mobileActionMenu === delivery._id && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 py-2">
+          <button
+            onClick={() => {
+              setDeliveryForm({
+                deliveryPersonName: delivery.deliveryPersonName,
+                phone: delivery.phone,
+                apartment: delivery.apartment,
+                deliveryCompany: delivery.deliveryCompany,
+                expectedTime: new Date(delivery.expectedTime)
+              });
+              setCurrentDelivery(delivery);
+              setShowForm(true);
+              setMobileActionMenu(null);
+            }}
+            disabled={delivery.status === 'completed'}
+            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 ${
+              delivery.status === 'completed' ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600'
+            }`}
+          >
+            <Edit size={16} /> Edit
+          </button>
+          
+          <button
+            onClick={() => {
+              setCurrentDelivery(delivery);
+              setShowForm(false);
+              fetchDeliveryLogs(delivery._id);
+              setMobileActionMenu(null);
+            }}
+            disabled={!delivery.uniqueId}
+            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 ${
+              !delivery.uniqueId ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600'
+            }`}
+          >
+            <Package size={16} /> View Code
+          </button>
+          
+          <button
+            onClick={() => handleDeleteDelivery(delivery._id)}
+            disabled={delivery.status === 'completed'}
+            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 ${
+              delivery.status === 'completed' ? 'text-gray-400 cursor-not-allowed' : 'text-red-600'
+            }`}
+          >
+            <Trash2 size={16} /> Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 md:py-6 lg:py-8 px-3 md:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Delivery Management</h1>
-              <p className="text-gray-600 mt-1">
-                {resident ? `${resident.name} - Flat ${resident.flat_no}` : 'Loading...'}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Delivery Management</h1>
+                <p className="text-sm md:text-base text-gray-600 mt-1">
+                  {resident ? `${resident.name} • Flat ${resident.flat_no}` : 'Loading resident information...'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          {/* Tabs - Mobile Responsive */}
+          <div className="hidden md:flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('active')}
               className={`flex-1 py-4 px-6 text-center font-medium flex items-center justify-center gap-2 ${
@@ -510,64 +574,179 @@ const DeliveryManagement = () => {
             </button>
           </div>
 
-          {/* Filters and Actions */}
-          <div className="p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
-                {activeTab === 'active' ? 'Active Deliveries' : 'Delivery History'}
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({filteredDeliveries.length} {filteredDeliveries.length === 1 ? 'record' : 'records'})
+          {/* Mobile Tabs Dropdown */}
+          <div className="md:hidden border-b border-gray-200">
+            <button
+              onClick={() => setShowMobileTabs(!showMobileTabs)}
+              className="w-full py-3 px-4 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Truck size={18} />
+                <span className="font-medium">
+                  {activeTab === 'active' ? 'Active Deliveries' : 'Delivery History'}
                 </span>
-              </h2>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              </div>
+              <ChevronDown className={`transition-transform ${showMobileTabs ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showMobileTabs && (
+              <div className="bg-white border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setActiveTab('active');
+                    setShowMobileTabs(false);
+                  }}
+                  className={`w-full py-3 px-6 flex items-center gap-2 ${
+                    activeTab === 'active' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <Truck size={18} /> Active Deliveries
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('history');
+                    setShowMobileTabs(false);
+                  }}
+                  className={`w-full py-3 px-6 flex items-center gap-2 ${
+                    activeTab === 'history' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <Clock size={18} /> Delivery History
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Filters and Actions */}
+          <div className="p-4 md:p-6">
+            <div className="flex flex-col space-y-4 mb-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800">
+                  {activeTab === 'active' ? 'Active Deliveries' : 'Delivery History'}
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({filteredDeliveries.length} {filteredDeliveries.length === 1 ? 'record' : 'records'})
+                  </span>
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                    className="md:hidden p-2 rounded-lg bg-gray-50 hover:bg-gray-100"
+                  >
+                    <Filter size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Filters */}
+              {showMobileFilters && (
+                <div className="md:hidden bg-gray-50 p-4 rounded-lg space-y-3 animate-slideDown">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search deliveries..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 bg-white px-3 py-2.5 border border-gray-300 rounded-lg">
+                    <Calendar className="text-gray-400" size={18} />
+                    <DatePicker
+                      selected={selectedDate}
+                      onChange={(date) => setSelectedDate(date)}
+                      placeholderText="Filter by date"
+                      className="w-full focus:outline-none text-sm"
+                      dateFormat="MMM d, yyyy"
+                      isClearable
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setSelectedDate(null);
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Desktop Search and Filters */}
+              <div className="hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={18}
+                  />
                   <input
                     type="text"
                     placeholder="Search by name, phone, or company..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   />
                 </div>
-                <div className="flex items-center gap-2 bg-white px-3 py-2 border border-gray-300 rounded-lg">
-                  <Calendar className="text-gray-400" size={18} />
-                  <DatePicker
-                    selected={selectedDate}
-                    onChange={(date) => setSelectedDate(date)}
-                    placeholderText="Filter by date"
-                    className="w-32 focus:outline-none"
-                    dateFormat="MMMM d, yyyy"
-                    isClearable
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 bg-white px-3 py-2 border border-gray-300 rounded-lg">
+                    <Calendar className="text-gray-400" size={18} />
+                    <DatePicker
+                      selected={selectedDate}
+                      onChange={(date) => setSelectedDate(date)}
+                      placeholderText="Filter by date"
+                      className="w-40 focus:outline-none"
+                      dateFormat="MMMM d, yyyy"
+                      isClearable
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowForm(true);
+                      setCurrentDelivery(null);
+                      setDeliveryForm({
+                        deliveryPersonName: '',
+                        phone: '+91',
+                        apartment: resident?.flat_no || '',
+                        deliveryCompany: '',
+                        expectedTime: new Date()
+                      });
+                      setPhoneError('');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg transition bg-blue-600 hover:bg-blue-700 text-white shadow text-sm md:text-base"
+                  >
+                    <Plus size={18} /> New Delivery
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowForm(true);
-                    setCurrentDelivery(null);
-                    setDeliveryForm({
-                      deliveryPersonName: '',
-                      phone: '+91',
-                      apartment: resident?.flat_no || '',
-                      deliveryCompany: '',
-                      expectedTime: new Date()
-                    });
-                    setPhoneError('');
-                  }}
-                   className="flex items-center gap-2 px-4 py-2 rounded-lg transition 
-                    
-                  bg-blue-600 hover:bg-blue-700 text-white shadow"
-                >
-                  <Plus size={18} /> New Delivery
-                </button>
               </div>
+
+              {/* Mobile New Delivery Button */}
+              <button
+                onClick={() => {
+                  setShowForm(true);
+                  setCurrentDelivery(null);
+                  setDeliveryForm({
+                    deliveryPersonName: '',
+                    phone: '+91',
+                    apartment: resident?.flat_no || '',
+                    deliveryCompany: '',
+                    expectedTime: new Date()
+                  });
+                  setPhoneError('');
+                }}
+                className="md:hidden w-full py-3 rounded-lg transition bg-blue-600 hover:bg-blue-700 text-white shadow flex items-center justify-center gap-2"
+              >
+                <Plus size={18} /> New Delivery
+              </button>
             </div>
 
             {/* Delivery Form / Unique ID Display */}
             {(showForm || currentDelivery) && (
-              <div className="mb-8 bg-gray-50 p-6 rounded-xl border border-gray-200">
+              <div className="mb-6 md:mb-8 bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
+                  <h3 className="text-base md:text-lg font-semibold text-gray-800">
                     {currentDelivery ? 'Delivery Pass Code' : 'Create New Delivery'}
                   </h3>
                   <button
@@ -584,22 +763,23 @@ const DeliveryManagement = () => {
                       setPhoneError('');
                       setLogs([]);
                     }}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 hover:text-gray-700 p-1"
                   >
                     <X size={20} />
                   </button>
                 </div>
 
                 {currentDelivery ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                     {/* Unique ID Section */}
-                    <div className="bg-white p-6 rounded-xl border border-gray-200">
-                      <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200 text-center">
-                        <div className="text-2xl font-mono font-bold text-blue-800">
+                    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
+                      <div className="mb-4 p-3 md:p-4 bg-blue-50 rounded border border-blue-200 text-center">
+                        <div className="text-lg md:text-xl lg:text-2xl font-mono font-bold text-blue-800 break-all">
                           {currentDelivery.uniqueId || 'No code available'}
                         </div>
+                        <p className="text-xs md:text-sm text-blue-600 mt-2">Share this code with the delivery person</p>
                       </div>
-                      <div className="space-y-3 text-sm">
+                      <div className="space-y-2 md:space-y-3 text-sm">
                         <div className="flex justify-between">
                           <span className="font-medium text-gray-600">Delivery Person:</span>
                           <span className="text-gray-800">{currentDelivery.deliveryPersonName}</span>
@@ -631,9 +811,9 @@ const DeliveryManagement = () => {
                     </div>
 
                     {/* Edit Form Section */}
-                    <div className="bg-white p-6 rounded-xl border border-gray-200">
-                      <h4 className="font-medium text-gray-800 mb-4">Edit Delivery Details</h4>
-                      <form onSubmit={handleUpdateDelivery} className="space-y-4">
+                    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-200">
+                      <h4 className="font-medium text-gray-800 mb-3 md:mb-4">Edit Delivery Details</h4>
+                      <form onSubmit={handleUpdateDelivery} className="space-y-3 md:space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Person Name *</label>
                           <div className="relative">
@@ -642,7 +822,7 @@ const DeliveryManagement = () => {
                               type="text"
                               value={deliveryForm.deliveryPersonName}
                               onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryPersonName: e.target.value })}
-                              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base"
                               required
                               placeholder="Enter delivery person's name"
                             />
@@ -661,7 +841,7 @@ const DeliveryManagement = () => {
                           <select
                             value={deliveryForm.deliveryCompany}
                             onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryCompany: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base"
                             required
                           >
                             <option value="" disabled>Select a delivery company</option>
@@ -672,7 +852,7 @@ const DeliveryManagement = () => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Time *</label>
-                          <div className="relative flex items-center gap-2 bg-white px-4 py-2 border border-gray-300 rounded-lg">
+                          <div className="relative flex items-center gap-2 bg-white px-3 md:px-4 py-2 border border-gray-300 rounded-lg">
                             <Calendar className="text-gray-400" size={18} />
                             <DatePicker
                               selected={deliveryForm.expectedTime}
@@ -680,17 +860,18 @@ const DeliveryManagement = () => {
                               showTimeSelect
                               timeFormat="HH:mm"
                               timeIntervals={15}
-                              dateFormat="MMMM d, yyyy h:mm aa"
-                              className="w-full focus:outline-none"
+                              dateFormat="MMM d, yyyy h:mm aa"
+                              className="w-full focus:outline-none text-sm md:text-base"
                               required
+                              popperPlacement="bottom-start"
                             />
                           </div>
                         </div>
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex gap-2 md:gap-3 pt-2">
                           <button
                             type="submit"
                             disabled={isSending}
-                            className={`flex-1 py-2 rounded-lg transition flex items-center justify-center gap-2 ${
+                            className={`flex-1 py-2 rounded-lg transition flex items-center justify-center gap-2 text-sm md:text-base ${
                               isSending ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
                             }`}
                           >
@@ -701,7 +882,7 @@ const DeliveryManagement = () => {
                             type="button"
                             onClick={() => handleDeleteDelivery(currentDelivery._id)}
                             disabled={isSending}
-                            className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                            className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-2 px-2 md:px-4 rounded-lg transition flex items-center justify-center gap-2 text-sm md:text-base"
                           >
                             <Trash2 size={16} /> Delete
                           </button>
@@ -711,7 +892,7 @@ const DeliveryManagement = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleCreateDelivery} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Person Name *</label>
                         <div className="relative">
@@ -720,7 +901,7 @@ const DeliveryManagement = () => {
                             type="text"
                             value={deliveryForm.deliveryPersonName}
                             onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryPersonName: e.target.value })}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base"
                             required
                             placeholder="Enter delivery person's name"
                           />
@@ -740,7 +921,7 @@ const DeliveryManagement = () => {
                           type="text"
                           value={deliveryForm.apartment}
                           onChange={(e) => setDeliveryForm({ ...deliveryForm, apartment: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base"
                           required
                           placeholder="Enter apartment number"
                           readOnly
@@ -751,7 +932,7 @@ const DeliveryManagement = () => {
                         <select
                           value={deliveryForm.deliveryCompany}
                           onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryCompany: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm md:text-base"
                           required
                         >
                           <option value="" disabled>Select a delivery company</option>
@@ -763,7 +944,7 @@ const DeliveryManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Time *</label>
-                      <div className="relative flex items-center gap-2 bg-white px-4 py-2 border border-gray-300 rounded-lg">
+                      <div className="relative flex items-center gap-2 bg-white px-3 md:px-4 py-2 border border-gray-300 rounded-lg">
                         <Calendar className="text-gray-400" size={18} />
                         <DatePicker
                           selected={deliveryForm.expectedTime}
@@ -771,17 +952,18 @@ const DeliveryManagement = () => {
                           showTimeSelect
                           timeFormat="HH:mm"
                           timeIntervals={15}
-                          dateFormat="MMMM d, yyyy h:mm aa"
-                          className="w-full focus:outline-none"
+                          dateFormat="MMM d, yyyy h:mm aa"
+                          className="w-full focus:outline-none text-sm md:text-base"
                           required
+                          popperPlacement="bottom-start"
                         />
                       </div>
                     </div>
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap-2 md:gap-3 pt-4">
                       <button
                         type="submit"
                         disabled={isSending}
-                        className={`flex-1 py-2 rounded-lg transition flex items-center justify-center gap-2 ${
+                        className={`flex-1 py-2 md:py-3 rounded-lg transition flex items-center justify-center gap-2 text-sm md:text-base ${
                           isSending ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
                         }`}
                       >
@@ -812,7 +994,7 @@ const DeliveryManagement = () => {
                           });
                           setPhoneError('');
                         }}
-                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 md:py-3 px-2 md:px-4 rounded-lg transition flex items-center justify-center gap-2 text-sm md:text-base"
                       >
                         <X size={16} /> Cancel
                       </button>
@@ -830,14 +1012,14 @@ const DeliveryManagement = () => {
             ) : filteredDeliveries.length === 0 ? (
               <div className="text-center py-12">
                 <Truck size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-lg text-gray-600 mb-2">
+                <p className="text-base md:text-lg text-gray-600 mb-2">
                   {searchTerm || selectedDate
                     ? 'No deliveries found matching your criteria'
                     : `No ${activeTab === 'active' ? 'active' : 'completed'} deliveries found`}
                 </p>
                 {(searchTerm || selectedDate) && (
                   <button
-                    className="mt-4 text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 mx-auto"
+                    className="mt-4 text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 mx-auto text-sm md:text-base"
                     onClick={() => {
                       setSearchTerm('');
                       setSelectedDate(null);
@@ -849,7 +1031,8 @@ const DeliveryManagement = () => {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* Desktop Table View */}
+                <div className="hidden lg:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -961,17 +1144,82 @@ const DeliveryManagement = () => {
                   </table>
                 </div>
 
+                {/* Mobile/Tablet Card View */}
+                <div className="lg:hidden space-y-4">
+                  {currentItems.map(delivery => (
+                    <div key={delivery._id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition">
+                      {/* Delivery Header */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="text-blue-600" size={18} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">{delivery.deliveryPersonName}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Phone size={14} className="text-gray-400" />
+                              <span className="text-sm text-gray-600">{delivery.phone}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">Apartment {delivery.apartment}</div>
+                          </div>
+                        </div>
+                        <MobileActionsDropdown delivery={delivery} />
+                      </div>
+
+                      {/* Delivery Details */}
+                      <div className="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Company</p>
+                          <p className="text-sm font-medium text-gray-900">{delivery.deliveryCompany}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Status</p>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(delivery.status)}`}>
+                            {formatStatus(delivery.status)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Expected Time</p>
+                          <div className="flex items-center gap-1">
+                            <Clock size={14} className="text-gray-500" />
+                            <span className="text-sm">{formatTime(delivery.expectedTime)}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Entry Time</p>
+                          <div className="flex items-center gap-1">
+                            <ArrowRightCircle size={14} className="text-green-500" />
+                            <span className="text-sm">{formatTime(delivery.entryTime) || "-"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Unique ID */}
+                      {delivery.uniqueId && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-xs text-gray-500 mb-1">Delivery Code</p>
+                          <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                            <p className="font-mono text-sm text-blue-800 text-center break-all">
+                              {delivery.uniqueId}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 px-6 py-4">
+                  <div className="flex items-center justify-between mt-6 px-2 md:px-6 py-4">
                     <button
                       onClick={() => paginate(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
-                      className={`flex items-center gap-2 px-3 py-1 rounded ${
+                      className={`flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded text-sm ${
                         currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      <ChevronLeft size={16} /> Previous
+                      <ChevronLeft size={16} /> <span className="hidden sm:inline">Previous</span>
                     </button>
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -989,7 +1237,7 @@ const DeliveryManagement = () => {
                           <button
                             key={pageNum}
                             onClick={() => paginate(pageNum)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
                               currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                             }`}
                           >
@@ -998,12 +1246,12 @@ const DeliveryManagement = () => {
                         );
                       })}
                       {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <span className="flex items-end px-1">...</span>
+                        <span className="flex items-end px-1 text-gray-500">...</span>
                       )}
                       {totalPages > 5 && currentPage >= totalPages - 2 && (
                         <button
                           onClick={() => paginate(totalPages)}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
                             currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
@@ -1014,11 +1262,11 @@ const DeliveryManagement = () => {
                     <button
                       onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
-                      className={`flex items-center gap-2 px-3 py-1 rounded ${
+                      className={`flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded text-sm ${
                         currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      Next <ChevronRight size={16} />
+                      <span className="hidden sm:inline">Next</span> <ChevronRight size={16} />
                     </button>
                   </div>
                 )}
