@@ -25,7 +25,6 @@ const ResidentProfileManager = () => {
     gender: ''
   });
 
-
   // Set auth token
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -250,43 +249,57 @@ const ResidentProfileManager = () => {
     }
 
     const cleanPath = picturePath.startsWith('/') ? picturePath.slice(1) : picturePath;
-    return `http://localhost:5000/${cleanPath}`;
+    return `${API.replace('/api', '')}/${cleanPath}`;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-3 border-b-3 border-secondary mx-auto mb-4"></div>
+          <p className="text-text/70 text-lg">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Profile not found</h2>
-          <p className="text-gray-600">Unable to load profile information.</p>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md w-full mx-4">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <User className="w-10 h-10 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold text-primary mb-3">Profile not found</h2>
+          <p className="text-text/70 mb-6">Unable to load profile information. Please try again later.</p>
+          <button
+            onClick={fetchProfile}
+            className="bg-secondary hover:bg-secondary-dark text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 shadow hover:shadow-lg"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Profile Header */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-8 sm:px-8 sm:py-10">
-            <div className="flex flex-col sm:flex-row items-center space-y-6 sm:space-y-0 sm:space-x-8">
-              {/* Profile Picture */}
+    <div className="min-h-screen bg-background py-6 px-4 sm:px-6 lg:px-8">
+      {/* Main Container */}
+      <div className="max-w-6xl mx-auto">
+        {/* Profile Header Card */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+          {/* Gradient Header */}
+          <div className="bg-gradient-to-r from-primary to-primary-light px-6 py-8 sm:px-8 sm:py-10 lg:py-12">
+            <div className="flex flex-col lg:flex-row items-center lg:items-start lg:justify-between gap-8">
+              {/* Profile Picture Section */}
               <div className="relative">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-white p-1 shadow-md">
+                <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full bg-white p-2 shadow-xl">
                   {user.profilePicture ? (
                     <img
                       src={getProfilePictureUrl(user.profilePicture)}
                       alt="Profile"
-                      className="w-full h-full rounded-full object-cover"
+                      className="w-full h-full rounded-full object-cover border-4 border-white shadow-inner"
                       onError={(e) => {
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
@@ -294,42 +307,55 @@ const ResidentProfileManager = () => {
                     />
                   ) : null}
                   <div
-                    className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center"
+                    className="w-full h-full rounded-full bg-gradient-to-br from-secondary/20 to-primary/20 flex items-center justify-center border-4 border-white"
                     style={{ display: user.profilePicture ? 'none' : 'flex' }}
                   >
-                    <User className="w-14 h-14 text-blue-500" />
+                    <User className="w-16 h-16 sm:w-20 sm:h-20 text-primary" />
                   </div>
+                  <label className={`absolute -bottom-2 -right-2 bg-white rounded-full p-3 cursor-pointer hover:bg-gray-50 transition-all duration-300 shadow-lg ${uploadingPicture ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {uploadingPicture ? (
+                      <div className="w-5 h-5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Camera className="w-5 h-5 text-secondary" />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={uploadingPicture}
+                    />
+                  </label>
                 </div>
-                <label className={`absolute bottom-2 right-2 bg-white rounded-full p-2 cursor-pointer hover:bg-gray-100 transition-colors shadow-md ${uploadingPicture ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {uploadingPicture ? (
-                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Camera className="w-4 h-4 text-blue-600" />
-                  )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    disabled={uploadingPicture}
-                  />
-                </label>
               </div>
 
-              {/* User Info */}
-              <div className="text-white text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl font-bold">{user.name}</h1>
-                <p className="text-blue-100 text-lg capitalize">{user.role}</p>
-                <div className="mt-3 flex flex-wrap justify-center sm:justify-start gap-2">
-                  <span className="bg-blue-400 bg-opacity-20 px-3 py-1 rounded-full text-sm">
+              {/* User Info Section */}
+              <div className="flex-1 text-center lg:text-left">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">{user.name}</h1>
+                <p className="text-white/90 text-lg sm:text-xl capitalize mb-6">{user.role}</p>
+                
+                <div className="flex flex-wrap justify-center lg:justify-start gap-3">
+                  <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white">
                     PID: {user.permanentId}
                   </span>
                   {user.flat_no && (
-                    <span className="bg-blue-400 bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                    <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white">
+                      <Home className="inline-block w-4 h-4 mr-2" />
                       Flat: {user.flat_no}
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Edit Button for Mobile */}
+              <div className="lg:hidden w-full">
+                <button
+                  onClick={() => editMode ? updateProfile() : setEditMode(true)}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-secondary hover:bg-secondary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  {editMode ? <Save className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
+                  <span className="font-medium">{editMode ? 'Save Changes' : 'Edit Profile'}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -338,10 +364,18 @@ const ResidentProfileManager = () => {
           {error && (
             <div className="mx-6 mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
               <div className="flex justify-between items-start">
-                <p className="text-red-800 text-sm">{error}</p>
+                <div className="flex items-start gap-3">
+                  <div className="bg-red-100 p-2 rounded-full">
+                    <X className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-red-800 font-medium">Error</p>
+                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setError('')}
-                  className="text-red-600 hover:text-red-800 text-sm"
+                  className="text-red-600 hover:text-red-800 text-sm p-1 hover:bg-red-100 rounded-full transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -349,114 +383,133 @@ const ResidentProfileManager = () => {
             </div>
           )}
 
-          {/* Profile Details */}
-          <div className="p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Profile Information</h2>
+          {/* Profile Details Section */}
+          <div className="p-6 sm:p-8 lg:p-10">
+            {/* Desktop Edit Button */}
+            <div className="hidden lg:flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                Profile Information
+              </h2>
               <button
                 onClick={() => editMode ? updateProfile() : setEditMode(true)}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-6 py-3 bg-secondary hover:bg-secondary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                {editMode ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-                <span>{editMode ? 'Save Changes' : 'Edit Profile'}</span>
+                {editMode ? <Save className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
+                <span className="font-medium">{editMode ? 'Save Changes' : 'Edit Profile'}</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Name */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+            {/* Profile Form Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {/* Name Field */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-primary">Full Name</label>
                 {editMode ? (
                   <input
                     type="text"
                     name="name"
                     value={profileForm.name}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text"
+                    placeholder="Enter your full name"
                     required
                   />
                 ) : (
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <User className="w-5 h-5 text-gray-500" />
-                    <span className="text-gray-800">{user.name}</span>
+                  <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-primary/10">
+                    <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-secondary" />
+                    </div>
+                    <span className="text-text font-medium">{user.name}</span>
                   </div>
                 )}
               </div>
 
-              {/* Email */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Email</label>
+              {/* Email Field */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-primary">Email Address</label>
                 {editMode ? (
                   <input
                     type="email"
                     name="email"
                     value={profileForm.email}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text"
+                    placeholder="Enter your email"
                   />
                 ) : (
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Mail className="w-5 h-5 text-gray-500" />
-                    <span className="text-gray-800">{user.email || 'Not provided'}</span>
+                  <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-primary/10">
+                    <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-secondary" />
+                    </div>
+                    <span className="text-text font-medium">{user.email || 'Not provided'}</span>
                   </div>
                 )}
               </div>
 
-              {/* Phone */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Phone</label>
+              {/* Phone Field */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-primary">Phone Number</label>
                 {editMode ? (
                   <input
                     type="tel"
                     name="phone"
                     value={profileForm.phone}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text"
+                    placeholder="Enter phone number"
                   />
                 ) : (
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Phone className="w-5 h-5 text-gray-500" />
-                    <span className="text-gray-800">{user.phone || 'Not provided'}</span>
+                  <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-primary/10">
+                    <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-secondary" />
+                    </div>
+                    <span className="text-text font-medium">{user.phone || 'Not provided'}</span>
                   </div>
                 )}
               </div>
 
-              {/* Flat Number */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Flat Number</label>
+              {/* Flat Number Field */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-primary">Flat Number</label>
                 {editMode ? (
                   <input
                     type="text"
                     name="flat_no"
                     value={profileForm.flat_no}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text"
+                    placeholder="Enter flat number"
                   />
                 ) : (
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <Home className="w-5 h-5 text-gray-500" />
-                    <span className="text-gray-800">{user.flat_no || 'Not provided'}</span>
+                  <div className="flex items-center gap-4 p-4 bg-background rounded-xl border border-primary/10">
+                    <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center">
+                      <Home className="w-5 h-5 text-secondary" />
+                    </div>
+                    <span className="text-text font-medium">{user.flat_no || 'Not provided'}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Edit Mode Action Buttons */}
             {editMode && (
-              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mt-8">
+              <div className="flex flex-col sm:flex-row gap-4 mt-10 pt-8 border-t border-primary/10">
                 <button
                   onClick={updateProfile}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>Save Changes</span>
+                  <Save className="w-5 h-5" />
+                  <span className="font-medium">Save Changes</span>
                 </button>
                 <button
                   onClick={cancelEditing}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
-                  <X className="w-4 h-4" />
-                  <span>Cancel</span>
+                  <X className="w-5 h-5" />
+                  <span className="font-medium">Cancel</span>
                 </button>
               </div>
             )}
@@ -464,77 +517,104 @@ const ResidentProfileManager = () => {
         </div>
 
         {/* Family Members Section */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 sm:p-8 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center space-x-2 mb-4 sm:mb-0">
-                <Users className="w-6 h-6 text-blue-600" />
-                <span>Family Members</span>
-              </h2>
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6 sm:p-8 lg:p-10 border-b border-primary/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
+                  <Users className="w-6 h-6 text-secondary" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-primary">Family Members</h2>
+                  <p className="text-text/70 text-sm mt-1">Manage your family members in the residence</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowAddFamily(true)}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-secondary hover:bg-secondary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                <Plus className="w-4 h-4" />
-                <span>Add Member</span>
+                <Plus className="w-5 h-5" />
+                <span className="font-medium">Add Member</span>
               </button>
             </div>
           </div>
 
           {/* Family Members List */}
-          <div className="p-6 sm:p-8">
+          <div className="p-6 sm:p-8 lg:p-10">
             {user.familyMembers && user.familyMembers.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {user.familyMembers.map((member) => (
-                  <div key={member._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-semibold text-gray-800 text-lg">{member.name}</h3>
-                      <div className="flex space-x-2">
+                  <div key={member._id} className="bg-background rounded-xl p-5 border border-primary/10 hover:border-secondary transition-all duration-300 hover:shadow-lg">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-secondary/20 to-primary/20 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <h3 className="font-bold text-lg text-primary">{member.name}</h3>
+                      </div>
+                      <div className="flex gap-2">
                         <button
                           onClick={() => startEditingFamilyMember(member)}
-                          className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
+                          className="p-2 text-secondary hover:text-secondary-dark hover:bg-secondary/10 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => removeFamilyMember(member._id)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                           title="Remove"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-700">
-                        <span className="font-medium">Relation:</span> {member.relation}
-                      </p>
+                    
+                    <div className="space-y-3 pl-13">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <Users className="w-3 h-3 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-text/60">Relation</p>
+                          <p className="font-medium text-text">{member.relation}</p>
+                        </div>
+                      </div>
+                      
                       {member.gender && (
-                        <p className="text-sm text-gray-700">
-                          <span className="font-medium">Gender:</span> {member.gender}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="w-3 h-3 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-text/60">Gender</p>
+                            <p className="font-medium text-text capitalize">{member.gender}</p>
+                          </div>
+                        </div>
                       )}
-                      <p className="text-xs text-gray-500 mt-2">
-                        PID: {member.permanentId || user.permanentId}
-                      </p>
+                      
+                      <div className="pt-3 border-t border-primary/10">
+                        <p className="text-xs text-text/50">
+                          PID: {member.permanentId || user.permanentId}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Users className="w-8 h-8 text-gray-400" />
+              <div className="text-center py-12 lg:py-16">
+                <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-12 h-12 text-primary" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-700 mb-1">No family members</h3>
-                <p className="text-gray-500">Add family members to your profile</p>
+                <h3 className="text-xl font-bold text-primary mb-3">No family members added</h3>
+                <p className="text-text/70 mb-8 max-w-md mx-auto">Start by adding your family members to manage their information in the residence</p>
                 <button
                   onClick={() => setShowAddFamily(true)}
-                  className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-secondary hover:bg-secondary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Family Member
+                  <Plus className="w-5 h-5" />
+                  <span className="font-medium">Add First Family Member</span>
                 </button>
               </div>
             )}
@@ -544,35 +624,40 @@ const ResidentProfileManager = () => {
 
       {/* Add/Edit Family Member Modal */}
       {(showAddFamily || editFamilyMember) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-xl">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-slideUp">
+            <div className="p-6 bg-gradient-to-r from-primary to-primary-light">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <Users className="w-4 h-4 text-white" />
+                </div>
                 {editFamilyMember ? 'Edit Family Member' : 'Add Family Member'}
               </h3>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-5">
+              {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                <label className="block text-sm font-medium text-primary mb-2">Full Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={familyForm.name}
                   onChange={handleFamilyChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  placeholder="Enter full name"
+                  className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text"
+                  placeholder="Enter family member's name"
                   required
                 />
               </div>
 
+              {/* Relation Select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Relation *</label>
+                <label className="block text-sm font-medium text-primary mb-2">Relation *</label>
                 <select
                   name="relation"
                   value={familyForm.relation}
                   onChange={handleFamilyChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text appearance-none"
                   required
                 >
                   <option value="">Select relation</option>
@@ -592,13 +677,14 @@ const ResidentProfileManager = () => {
                 </select>
               </div>
 
+              {/* Gender Select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                <label className="block text-sm font-medium text-primary mb-2">Gender</label>
                 <select
                   name="gender"
                   value={familyForm.gender}
                   onChange={handleFamilyChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  className="w-full px-4 py-3 border border-primary/20 rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all duration-300 bg-background text-text appearance-none"
                 >
                   <option value="">Select gender</option>
                   <option value="Male">Male</option>
@@ -608,19 +694,22 @@ const ResidentProfileManager = () => {
               </div>
             </div>
 
-            <div className="p-6 bg-gray-50 flex space-x-3">
+            {/* Modal Actions */}
+            <div className="p-6 bg-background border-t border-primary/10 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={editFamilyMember ? updateFamilyMember : addFamilyMember}
                 disabled={!familyForm.name.trim() || !familyForm.relation.trim()}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-secondary hover:bg-secondary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
               >
-                {editFamilyMember ? 'Update' : 'Add'} Member
+                <Save className="w-5 h-5" />
+                <span className="font-medium">{editFamilyMember ? 'Update' : 'Add'} Member</span>
               </button>
               <button
                 onClick={cancelEditing}
-                className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                Cancel
+                <X className="w-5 h-5" />
+                <span className="font-medium">Cancel</span>
               </button>
             </div>
           </div>
